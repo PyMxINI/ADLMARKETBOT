@@ -1,5 +1,5 @@
 # **ADLMARKETBOT**
-*Бот с открытым исходным кодом,для автоматической передачи вещей [Steam-Trader](https://steam-trader.com/)
+Бот с открытым исходным кодом,для автоматической передачи вещей [Steam-Trader](https://steam-trader.com/)
 
 ## GUIDE 
 Пожалуйста, ознакомьтесь с [Wiki](https://github.com/PyMxINI/ADLMARKETBOT/wiki) для руководства по установке / использованию.
