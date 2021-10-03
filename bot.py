@@ -36,10 +36,33 @@ def Exchange():
         offer = (response_steamtrader_json["offerId"])  # получаю из response_steamtrader_json offerID
         try:
             client.accept_trade_offer(offer)  # принимаю обмен с данными offerID
-            print(f"Обмен {str(offer)} принят.")
+            print(f"Обмен {str(offer)} принят.")  # ответ что обмен принят успешно
+            update_inventory()  # обновление инвентаря
+            get_userbalance()   # баланс пользователя
         except:
-            print(f"Не удалось принять обмен {str(offer)}.")
+            print(f"Не удалось принять обмен {str(offer)}.")  # ответ что не вышло принять обмен
             pass
+
+
+def update_inventory():  # обновление инвентаря
+    response_steamtrader_inventory = requests.get(
+        "https://api.steam-trader.com/updateinventory/?key={}&gameid=440".format(market_api_key))
+    response_steamtrader_inventory_json = response_steamtrader_inventory.json()
+
+    success_steamtrader_inventory_json = response_steamtrader_inventory_json.get("success", "")
+    if success_steamtrader_inventory_json:  # если ответ success
+        print("Инвентарь TF2 обновлен")
+
+
+def get_userbalance():  # баланс пользователя
+    response_steamtrader_balance = requests.get(
+        "https://api.steam-trader.com/getbalance/?key={}".format(market_api_key))
+    response_steamtrader_balance_json = response_steamtrader_balance.json()
+
+    success_steamtrader_balance_json = response_steamtrader_balance_json.get("success", "")
+    if success_steamtrader_balance_json:  # если ответ success
+        balance = (response_steamtrader_balance_json["balance"])
+        print(f" Баланс {float(balance)} руб.")  # отображает баланс пользователя
 
 
 def are_credentials_filled() -> bool:
@@ -52,6 +75,8 @@ def print_time():
 
 def market_scheduler():
     print_time()
+    update_inventory()
+    get_userbalance()
     Exchange()
 
     schedule.every(2).minutes.do(print_time)
@@ -122,7 +147,7 @@ def log_in():
     api_key = steam_api_entry.get()
     steamguard_path = entry_path.get()
     if not are_credentials_filled():
-        messagebox.showerror("Error", "You have to fill credentials.")
+        messagebox.showerror("Ошибка", "Вы должны заполнить учетные данные.")
         return
     try:
         client = SteamClient(api_key)
@@ -134,8 +159,8 @@ def log_in():
         global win
         win.destroy()
     except:
-        messagebox.showerror("Error", "The account name or password that you have entered is incorrect or you made too"
-                                      " many tryes to log in.")
+        messagebox.showerror("Error", "Имя учетной записи или пароль, которые вы ввели, неверны или вы слишком"
+                                      "предприняли слишком много попыток для входа в систему.")
 
 
 def insert_data():
