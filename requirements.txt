@@ -1,6 +1,4 @@
-setuptools~=57.0.0
-selenium~=3.141.0
-requests~=2.26.0
-schedule~=1.1.0
-steampy~=0.74
-pushbullet.py~=0.12.0
+requests>=2.26.0
+schedule>=1.1.0
+steampy>=0.74
+pushbullet.py>=0.12.0
