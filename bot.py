@@ -7,6 +7,16 @@ from tkinter import messagebox, filedialog
 import shelve
 import schedule
 import functools
+import logging
+
+logger = logging.getLogger('')
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("schedule").setLevel(logging.WARNING)
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler('logs.log')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def catch_exceptions(cancel_on_failure=False):
@@ -30,17 +40,25 @@ def Exchange():
     response_steamtrader = requests.get(
         "https://api.steam-trader.com/exchange/?key={}".format(market_api_key))  # отправляю запрос на получение трейда
     response_steamtrader_json = response_steamtrader.json()
+    logger.info('Отправлен запрос на проверку покупок/продаж на сайте')  # логирование 9
 
     success_steamtrader = response_steamtrader_json.get("success", "")
     if success_steamtrader:  # если ответ success
+        logger.info('ответ: success - OfferID получен принимаю трейд')  # логирование 10
         offer = (response_steamtrader_json["offerId"])  # получаю из response_steamtrader_json offerID
+        balanceget = (response_steamtrader_json["price"])
         try:
             client.accept_trade_offer(offer)  # принимаю обмен с данными offerID
             print(f"Обмен {str(offer)} принят.")  # ответ что обмен принят успешно
+            logger.info(f"Обмен {str(offer)} принят.")  # логирование 3
+            print(f"На баланс зачислено{float(balanceget)} руб (без учета комис).")
+            logger.info(f"На баланс зачислено{float(balanceget)} руб (без учета комис).")  # логирование 4
+            # выводим ответ после обмена сколько получено денег на баланс без учета комис
             update_inventory()  # обновление инвентаря
-            get_userbalance()   # баланс пользователя
+            get_userbalance()  # баланс пользователя
         except:
             print(f"Не удалось принять обмен {str(offer)}.")  # ответ что не вышло принять обмен
+            logger.warning(f"Не удалось принять обмен {str(offer)}.")  # логирование 5
             pass
 
 
@@ -52,6 +70,7 @@ def update_inventory():  # обновление инвентаря
     success_steamtrader_inventory_json = response_steamtrader_inventory_json.get("success", "")
     if success_steamtrader_inventory_json:  # если ответ success
         print("Инвентарь TF2 обновлен")
+        logger.info('Inventory updated')  # логирование 1
 
 
 def get_userbalance():  # баланс пользователя
@@ -63,6 +82,7 @@ def get_userbalance():  # баланс пользователя
     if success_steamtrader_balance_json:  # если ответ success
         balance = (response_steamtrader_balance_json["balance"])
         print(f" Баланс {float(balance)} руб.")  # отображает баланс пользователя
+        logger.info('Balance has benn updated')  # логирование 2
 
 
 def are_credentials_filled() -> bool:
@@ -71,6 +91,7 @@ def are_credentials_filled() -> bool:
 
 def print_time():
     print(time.strftime("%d/%m/%Y, %H:%M:%S", time.localtime()))
+    logger.info(time.strftime("%d/%m/%Y, %H:%M:%S", time.localtime()))  # логирование 6
 
 
 def market_scheduler():
@@ -81,7 +102,7 @@ def market_scheduler():
 
     schedule.every(2).minutes.do(print_time)
 
-    schedule.every(120).seconds.do(Exchange)
+    schedule.every(180).seconds.do(Exchange)
 
     while True:
         schedule.run_pending()
@@ -134,7 +155,6 @@ def save_data():
 
 
 def log_in():
-    # noinspection PyGlobalUndefined
     global username
     global password
     global market_api_key
@@ -154,6 +174,7 @@ def log_in():
         client.login(username, password, steamguard_path)
         messagebox.showinfo("Success",
                             'Бот вошел в систему:' + time.strftime("%d/%m/%Y, %H:%M:%S", time.localtime()))
+        logger.info("Бот вошел в систему")  # логирование 7
         save_data()
         create_widgets()
         global win
@@ -184,9 +205,20 @@ def insert_data():
             pass
 
 
+def find_market_api():
+    result = webbrowser.open("https://steam-trader.com/api/", new=1)
+    return result
+
+
+def find_steam_api():
+    result = webbrowser.open("https://steamcommunity.com/dev/apikey", new=1)
+    return result
+
+
 def find_shared_secret():
     result = webbrowser.open(
-        "https://github.com/SteamTimeIdler/stidler/wiki/Getting-your-%27shared_secret%27-code-for-use-with-Auto-Restarter-on-Mobile-Authentication",
+        "https://github.com/SteamTimeIdler/stidler/wiki/Getting-your-%27shared_secret%27-code-for-use-with-Auto"
+        "-Restarter-on-Mobile-Authentication",
         new=1)
     return result
 
@@ -215,12 +247,18 @@ market_api_entry = StringVar()
 entry_market_api = Entry(win, textvariable=market_api_entry)
 entry_market_api.grid(row=3, column=1)
 
+market_api_button = Button(win, text='?', command=find_market_api, bg="skyblue")
+market_api_button.grid(row=3, column=3, columnspan=2, sticky="w")
+
 label_steam_api = Label(win, text="Steam API: ", bg="pink", font=("arial", 10), padx=10, pady=10)
 label_steam_api.grid(row=4, column=0, sticky="e")
 
 steam_api_entry = StringVar()
 entry_steam_api = Entry(win, textvariable=steam_api_entry)
 entry_steam_api.grid(row=4, column=1)
+
+steam_api_button = Button(win, text="?", command=find_steam_api, bg="skyblue")
+steam_api_button.grid(row=4, column=3, columnspan=2, sticky="w")
 
 label_steam_guard_path = Label(win, text="Steamguard file path: ", bg="pink", font=("arial", 10), padx=10, pady=10)
 label_steam_guard_path.grid(row=5, column=0, sticky="e")
