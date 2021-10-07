@@ -1,13 +1,14 @@
-import webbrowser
-import requests
-import time
-from steampy.client import SteamClient
-from tkinter import *
-from tkinter import messagebox, filedialog
-import shelve
-import schedule
 import functools
 import logging
+import shelve
+import time
+import webbrowser
+from tkinter import *
+from tkinter import messagebox, filedialog
+
+import requests
+import schedule
+from steampy.client import SteamClient
 
 logger = logging.getLogger('')
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -36,11 +37,12 @@ def catch_exceptions(cancel_on_failure=False):
 
 
 @catch_exceptions(cancel_on_failure=False)
+# client.accept_trade_offer(offer) спасибо за решение пробелемы vk > https://vk.com/ilay1999xp
 def Exchange():
     response_steamtrader = requests.get(
         "https://api.steam-trader.com/exchange/?key={}".format(market_api_key))  # отправляю запрос на получение трейда
     response_steamtrader_json = response_steamtrader.json()
-    logger.info('Отправлен запрос на проверку покупок/продаж на сайте')  # логирование 9
+    logger.info('Отправлен запрос на проверку Купленных/Проданных предметов на сайте')  # логирование 9
 
     success_steamtrader = response_steamtrader_json.get("success", "")
     if success_steamtrader:  # если ответ success
@@ -82,7 +84,24 @@ def get_userbalance():  # баланс пользователя
     if success_steamtrader_balance_json:  # если ответ success
         balance = (response_steamtrader_balance_json["balance"])
         print(f" Баланс {float(balance)} руб.")  # отображает баланс пользователя
-        logger.info('Balance has benn updated')  # логирование 2
+        logger.info('Balance has been updated')  # логирование 2
+
+
+# get_buyorders
+def get_buyorders():
+    response_steamtrader_buyorders = requests.get(
+        "https://api.steam-trader.com/getbuyorders/?key={}".format(market_api_key))
+    response_steamtrader_buyorders_json = response_steamtrader_buyorders.json()
+
+    success_steamtrader_buyorders_json = response_steamtrader_buyorders_json.get("success", "")
+    if success_steamtrader_buyorders_json:  # если ответ success
+        logger.info('buyorders: success - Список предметов получен')  # логирование 13
+        # спасибо за решение пробелемы vk.com/ilay1999xp
+        offers = (response_steamtrader_buyorders_json["data"])
+        for offer in offers:
+            offer1 = (offer["hash_name"])  # имя предмета
+            offer2 = (offer["position"])  # позиция предмета
+            print(f"Предмет:{str(offer1)} Позиция:{int(offer2)}")
 
 
 def are_credentials_filled() -> bool:
@@ -99,11 +118,13 @@ def market_scheduler():
     update_inventory()
     get_userbalance()
     Exchange()
+    get_buyorders()
 
     schedule.every(2).minutes.do(print_time)
 
     schedule.every(180).seconds.do(Exchange)
 
+    schedule.every(180).seconds.do(get_buyorders)
     while True:
         schedule.run_pending()
 
@@ -117,16 +138,16 @@ win.configure(bg="pink")
 
 def create_widgets():
     root = Tk()
-    root.title("ADLtradebot")
+    root.title("ADLmarketbot")
     root.configure(bg="#808080")
     root.maxsize(width=360, height=200)  # 230
     root.geometry("360x200")
 
-    market_label = Label(root, text="ADLtradebot", font="Arial 24", padx=3, pady=5, bg="#808080", borderwidth=1)
+    market_label = Label(root, text="ADLmarketbot", font="Arial 24", padx=3, pady=5, bg="#808080", borderwidth=1)
     market_label.grid(row=0, column=0, padx=5, pady=10)
 
     text = """
-    ADLtradebot made by mxINI
+    ADLmarketbot made by mxINI
     Automatic Trading on Steam-Trader
     """
 
@@ -168,6 +189,7 @@ def log_in():
     steamguard_path = entry_path.get()
     if not are_credentials_filled():
         messagebox.showerror("Ошибка", "Вы должны заполнить учетные данные.")
+        logger.info("Неудачная попытка авторизации/нужно заполнить учетные данные")  # логирование 12
         return
     try:
         client = SteamClient(api_key)
@@ -180,8 +202,9 @@ def log_in():
         global win
         win.destroy()
     except:
-        messagebox.showerror("Error", "Имя учетной записи или пароль, которые вы ввели, неверны или вы слишком"
+        messagebox.showerror("Error", "Имя учетной записи или пароль, которые вы ввели, неверны или вы "
                                       "предприняли слишком много попыток для входа в систему.")
+        logger.error("Неудачная попытка авторизации")  # логирование 11
 
 
 def insert_data():
@@ -281,7 +304,7 @@ entry_path_button.grid(row=5, column=3, columnspan=2, sticky="w")
 btn = Button(win, text="Browse", command=browse, padx=10, bg="skyblue")
 btn.grid(row=5, column=2)
 
-lbl = Label(win, text="Нужно создать txt файл и Вложить в него данные снизу ", bg="pink")
+lbl = Label(win, text="Нужно создать и заполнить txt файл с данными которые указаны снизу", bg="pink")
 lbl.grid(row=7, column=0, columnspan=3)
 
 a = """
