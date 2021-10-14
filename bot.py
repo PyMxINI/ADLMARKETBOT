@@ -5,10 +5,10 @@ import time
 import webbrowser
 from tkinter import *
 from tkinter import messagebox, filedialog
-
 import requests
 import schedule
 from steampy.client import SteamClient
+import json
 
 logger = logging.getLogger('')
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -42,25 +42,21 @@ def Exchange():
     response_steamtrader = requests.get(
         "https://api.steam-trader.com/exchange/?key={}".format(market_api_key))  # отправляю запрос на получение трейда
     response_steamtrader_json = response_steamtrader.json()
-    logger.info('Отправлен запрос на проверку Купленных/Проданных предметов на сайте')  # логирование 9
+    logger.info('Отправлен запрос на проверку Купленных/Проданных предметов на сайте')  # логирование
 
     success_steamtrader = response_steamtrader_json.get("success", "")
     if success_steamtrader:  # если ответ success
-        logger.info('ответ: success - OfferID получен принимаю трейд')  # логирование 10
+        logger.info('Exchange: success - OfferID получен')  # логирование
         offer = (response_steamtrader_json["offerId"])  # получаю из response_steamtrader_json offerID
-        balanceget = (response_steamtrader_json["price"])
         try:
             client.accept_trade_offer(offer)  # принимаю обмен с данными offerID
             print(f"Обмен {str(offer)} принят.")  # ответ что обмен принят успешно
-            logger.info(f"Обмен {str(offer)} принят.")  # логирование 3
-            print(f"На баланс зачислено{float(balanceget)} руб (без учета комис).")
-            logger.info(f"На баланс зачислено{float(balanceget)} руб (без учета комис).")  # логирование 4
-            # выводим ответ после обмена сколько получено денег на баланс без учета комис
+            logger.info(f"Обмен {str(offer)} принят.")  # логирование
             update_inventory()  # обновление инвентаря
             get_userbalance()  # баланс пользователя
         except:
             print(f"Не удалось принять обмен {str(offer)}.")  # ответ что не вышло принять обмен
-            logger.warning(f"Не удалось принять обмен {str(offer)}.")  # логирование 5
+            logger.warning(f"Не удалось принять обмен {str(offer)}.")  # логирование
             pass
 
 
@@ -71,8 +67,9 @@ def update_inventory():  # обновление инвентаря
 
     success_steamtrader_inventory_json = response_steamtrader_inventory_json.get("success", "")
     if success_steamtrader_inventory_json:  # если ответ success
+        logger.info('Inventory: success - Инвентарь получен')  # логирование
         print("Инвентарь TF2 обновлен")
-        logger.info('Inventory updated')  # логирование 1
+        logger.info('Inventory updated')  # логирование
 
 
 def get_userbalance():  # баланс пользователя
@@ -82,12 +79,13 @@ def get_userbalance():  # баланс пользователя
 
     success_steamtrader_balance_json = response_steamtrader_balance_json.get("success", "")
     if success_steamtrader_balance_json:  # если ответ success
+        logger.info('Balance: success - Баланс получен')  # логирование
         balance = (response_steamtrader_balance_json["balance"])
         print(f" Баланс {float(balance)} руб.")  # отображает баланс пользователя
-        logger.info('Balance has been updated')  # логирование 2
+        logger.info('Balance has been updated')  # логирование
 
 
-# get_buyorders
+# вывод buy order
 def get_buyorders():
     response_steamtrader_buyorders = requests.get(
         "https://api.steam-trader.com/getbuyorders/?key={}".format(market_api_key))
@@ -95,13 +93,40 @@ def get_buyorders():
 
     success_steamtrader_buyorders_json = response_steamtrader_buyorders_json.get("success", "")
     if success_steamtrader_buyorders_json:  # если ответ success
-        logger.info('buyorders: success - Список предметов получен')  # логирование 13
+        logger.info('buyorders: success - Список предметов получен')  # логирование
         # спасибо за решение пробелемы vk.com/ilay1999xp
-        offers = (response_steamtrader_buyorders_json["data"])
+        offers = (response_steamtrader_buyorders_json["data"])  # беру инфу из data
         for offer in offers:
             offer1 = (offer["hash_name"])  # имя предмета
             offer2 = (offer["position"])  # позиция предмета
             print(f"Предмет:{str(offer1)} Позиция:{int(offer2)}")
+
+
+def get_iteminfo():
+    with open('chprices.json', 'r') as f:  # открываю файл с gid
+        pricecfg = json.load(f)  # закинул данные в переменую
+        items = (pricecfg["items"])  # инфа цифр из строки items
+        gidNumbers = items["gid"]
+        for gidNum in gidNumbers:  # проходимся по всем элементам массива items["gid"], с помощью цикла for in
+            print(gidNum)
+            time.sleep(3)  # спим 3 секунды
+            response_steamtrader_itemprices = requests.get(
+                "https://api.steam-trader.com/iteminfo/?key={}&gid={}".format(market_api_key, gidNum))
+            response_steamtrader_itemprices_json = response_steamtrader_itemprices.json()
+
+            success_steamtrader_itemprices_json = response_steamtrader_itemprices_json.get("success", "")
+            if success_steamtrader_itemprices_json:
+                logger.info('iteminfo: success - Цены на предметы получены')  # логирование
+                market_name = (response_steamtrader_itemprices_json["name"])  # steamtrader имя предмета
+                market_priceorder = (response_steamtrader_itemprices_json["buy_price"])
+                offerssell = (response_steamtrader_itemprices_json["sell_offers"])[0]
+                offer1 = (offerssell["price"])  # цена с инфы выще
+                try:
+                    print(f"Название предмета: {str(market_name)}.")
+                    print(f"Минимальная цена продажи на сайте: {float(offer1)} Rub.")
+                    print(f"Максимальная цена заявки на покупку: {float(market_priceorder)} Rub.")
+                except:
+                    pass
 
 
 def are_credentials_filled() -> bool:
@@ -110,7 +135,7 @@ def are_credentials_filled() -> bool:
 
 def print_time():
     print(time.strftime("%d/%m/%Y, %H:%M:%S", time.localtime()))
-    logger.info(time.strftime("%d/%m/%Y, %H:%M:%S", time.localtime()))  # логирование 6
+    logger.info(time.strftime("%d/%m/%Y, %H:%M:%S", time.localtime()))  # логирование
 
 
 def market_scheduler():
@@ -119,19 +144,23 @@ def market_scheduler():
     get_userbalance()
     Exchange()
     get_buyorders()
+    get_iteminfo()
 
     schedule.every(2).minutes.do(print_time)
 
     schedule.every(180).seconds.do(Exchange)
 
     schedule.every(180).seconds.do(get_buyorders)
+
+    schedule.every(180).seconds.do(get_iteminfo)
+
     while True:
         schedule.run_pending()
 
 
 win = Tk()
-win.geometry("380x500")
-win.maxsize(width=380, height=425)
+win.geometry("380x295")
+win.maxsize(width=380, height=295)
 win.title("Login on bot")
 win.configure(bg="pink")
 
@@ -140,7 +169,7 @@ def create_widgets():
     root = Tk()
     root.title("ADLmarketbot")
     root.configure(bg="#808080")
-    root.maxsize(width=360, height=200)  # 230
+    root.maxsize(width=360, height=200)
     root.geometry("360x200")
 
     market_label = Label(root, text="ADLmarketbot", font="Arial 24", padx=3, pady=5, bg="#808080", borderwidth=1)
@@ -189,14 +218,14 @@ def log_in():
     steamguard_path = entry_path.get()
     if not are_credentials_filled():
         messagebox.showerror("Ошибка", "Вы должны заполнить учетные данные.")
-        logger.info("Неудачная попытка авторизации/нужно заполнить учетные данные")  # логирование 12
+        logger.info("Неудачная попытка авторизации/нужно заполнить учетные данные")  # логирование
         return
     try:
         client = SteamClient(api_key)
         client.login(username, password, steamguard_path)
         messagebox.showinfo("Success",
                             'Бот вошел в систему:' + time.strftime("%d/%m/%Y, %H:%M:%S", time.localtime()))
-        logger.info("Бот вошел в систему")  # логирование 7
+        logger.info("Бот вошел в систему")  # логирование
         save_data()
         create_widgets()
         global win
@@ -204,7 +233,7 @@ def log_in():
     except:
         messagebox.showerror("Error", "Имя учетной записи или пароль, которые вы ввели, неверны или вы "
                                       "предприняли слишком много попыток для входа в систему.")
-        logger.error("Неудачная попытка авторизации")  # логирование 11
+        logger.error("Неудачная попытка авторизации")  # логирование
 
 
 def insert_data():
@@ -229,7 +258,7 @@ def insert_data():
 
 
 def find_market_api():
-    result = webbrowser.open("https://steam-trader.com/api/", new=1)
+    result = webbrowser.open("http://api.steam-trader.com", new=1)
     return result
 
 
@@ -303,19 +332,5 @@ entry_path_button.grid(row=5, column=3, columnspan=2, sticky="w")
 
 btn = Button(win, text="Browse", command=browse, padx=10, bg="skyblue")
 btn.grid(row=5, column=2)
-
-lbl = Label(win, text="Нужно создать и заполнить txt файл с данными которые указаны снизу", bg="pink")
-lbl.grid(row=7, column=0, columnspan=3)
-
-a = """
-{
-    "steamid": "YOUR_STEAM_ID_64",
-    "shared_secret": "YOUR_SHARED_SECRET",
-    "identity_secret": "YOUR_IDENTITY_SECRET"
-}
-"""
-
-lbl2 = Label(win, text=a, bg="pink")
-lbl2.grid(row=8, column=0, columnspan=4)
 
 win.mainloop()
