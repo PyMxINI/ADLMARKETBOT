@@ -1,4 +1,5 @@
-requests>=2.26.0
-schedule>=1.1.0
-steampy>=0.74
-pushbullet.py>=0.12.0
+requests~=2.26.0
+schedule~=1.1.0
+websocket-client~=1.2.1
+colorama~=0.4.4
+steampy~=0.74
