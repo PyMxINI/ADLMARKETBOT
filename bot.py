@@ -7,8 +7,10 @@ from tkinter import *
 from tkinter import messagebox, filedialog
 import requests
 import schedule
+import websocket
 from steampy.client import SteamClient
 import json
+import colorama
 
 logger = logging.getLogger('')
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -18,6 +20,15 @@ handler = logging.FileHandler('logs.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+colorama.init()
+messages_stack = []
+
+global username
+global password
+global market_api_key
+global api_key
+global steamguard_path
+global client
 
 
 def catch_exceptions(cancel_on_failure=False):
@@ -36,7 +47,7 @@ def catch_exceptions(cancel_on_failure=False):
     return catch_exceptions_decorator
 
 
-@catch_exceptions(cancel_on_failure=False)
+# @catch_exceptions(cancel_on_failure=False)
 # client.accept_trade_offer(offer) спасибо за решение пробелемы vk > https://vk.com/ilay1999xp
 def Exchange():
     response_steamtrader = requests.get(
@@ -49,13 +60,19 @@ def Exchange():
         logger.info('Exchange: success - OfferID получен')  # логирование
         offer = (response_steamtrader_json["offerId"])  # получаю из response_steamtrader_json offerID
         try:
-            client.accept_trade_offer(offer)  # принимаю обмен с данными offerID
-            print(f"Обмен {str(offer)} принят.")  # ответ что обмен принят успешно
-            logger.info(f"Обмен {str(offer)} принят.")  # логирование
-            update_inventory()  # обновление инвентаря
-            get_userbalance()  # баланс пользователя
+            if not client.is_session_alive():  # если сессия в стим мертва
+                print(print_time(), colorama.Fore.RED + f'Session expired!')
+                client.login(username, password, "steam_guard.json")
+
+                client.accept_trade_offer(offer)  # принимаю обмен с данными offerID
+                print(print_time(),
+                      colorama.Fore.GREEN + f"Обмен {str(offer)} принят.")  # ответ что обмен принят успешно
+                logger.info(f"Обмен {str(offer)} принят.")  # логирование
+                update_inventory()  # обновление инвентаря
+                get_userbalance()  # баланс пользователя
         except:
-            print(f"Не удалось принять обмен {str(offer)}.")  # ответ что не вышло принять обмен
+            print(print_time(),
+                  colorama.Fore.RED + f"Не удалось принять обмен {str(offer)}.")  # ответ что не вышло принять обмен
             logger.warning(f"Не удалось принять обмен {str(offer)}.")  # логирование
             pass
 
@@ -68,7 +85,7 @@ def update_inventory():  # обновление инвентаря
     success_steamtrader_inventory_json = response_steamtrader_inventory_json.get("success", "")
     if success_steamtrader_inventory_json:  # если ответ success
         logger.info('Inventory: success - Инвентарь получен')  # логирование
-        print("Инвентарь TF2 обновлен")
+        print(colorama.Fore.GREEN + f"Инвентарь TF2 обновлен")
         logger.info('Inventory updated')  # логирование
 
 
@@ -81,8 +98,7 @@ def get_userbalance():  # баланс пользователя
     if success_steamtrader_balance_json:  # если ответ success
         logger.info('Balance: success - Баланс получен')  # логирование
         balance = (response_steamtrader_balance_json["balance"])
-        print(f" Баланс {float(balance)} руб.")  # отображает баланс пользователя
-        logger.info('Balance has been updated')  # логирование
+        print(print_time(), f" Баланс {float(balance)} руб.")  # отображает баланс пользователя
 
 
 # вывод buy order
@@ -99,7 +115,7 @@ def get_buyorders():
         for offer in offers:
             offer1 = (offer["hash_name"])  # имя предмета
             offer2 = (offer["position"])  # позиция предмета
-            print(f"Предмет:{str(offer1)} Позиция:{int(offer2)}")
+            print(print_time(), f"Предмет:{str(offer1)} Позиция:{int(offer2)}")
 
 
 def get_iteminfo():
@@ -129,6 +145,87 @@ def get_iteminfo():
                     pass
 
 
+def session_ok():
+    if client.is_session_alive():  # если сессия в стим жива
+        print(colorama.Fore.GREEN + 'Steam Online!')
+        logger.info('Session: alive')  # логирование
+    else:
+        if not client.is_session_alive():  # если сессия в стим мертва
+            print(print_time(), colorama.Fore.RED + 'Session expired!')
+            logger.warning('Session expired!')  # логирование
+            client.login(username, password, "steam_guard.json")
+
+
+def editPrice(id_, price):
+    print(colorama.Fore.BLUE + f"Changing item price {str(id_)} on {str(price)}")
+    data = {  # Тут нужно сделать свой код для редактирование цены предмета,пример ниже
+        'id': str(id_),
+        'price': str(price)
+    }
+    data2 = requests.post(f"https://api.steam-trader.com/editprice/?key={market_api_key}",
+                          data=data).json()
+    return data2
+
+
+def saleItem(itemid, assetid, price):
+    print(colorama.Fore.BLUE + f"Selling item {str(itemid)} for {str(price)}")
+    data = {  # Тут нужно сделать свой код для Выставление своих предметов на продажу пример ниже
+        'itemid': str(itemid),
+        'assetid': str(assetid),
+        'price': str(price)
+    }
+    data2 = requests.post(f"https://api.steam-trader.com/sale/?key={market_api_key}", data=data).json()
+    return data2
+
+
+def message_handler():
+    global messages_stack
+    while True:
+        try:
+            if len(messages_stack) > 0:
+                message = messages_stack.pop()
+                if message[:2] == '11':
+                    changePosData = json.loads(message[2:])
+                    # for data in changePosData:
+                    # сюда нужно дописать код для передачи в перебив данных о изменений позиций с итем ид
+
+                elif message[:2] == '0D':
+                    # Необходимо отдать предмет
+                    time.sleep(3)
+                    print(message)
+                    print(colorama.Fore.RED + "Giving item")
+                elif message[:2] == '0C':
+                    time.sleep(3)
+                    print(message)
+                    print(colorama.Fore.GREEN + "Getting item")
+                elif message[:2] == '10':
+                    # Изменение баланса
+                    purseData = json.loads(message[2:])
+                    balance = purseData['1']
+                    print(colorama.Fore.GREEN + f"Balance changed: {str(balance)} rubles")
+
+                print(colorama.Fore.WHITE + "Got msg: ", message)
+
+        except Exception as err:
+            print(err)
+            print(colorama.Fore.RED + 'error occured - ignorring')
+        time.sleep(0.3)
+
+
+def run_ws():
+    ws = websocket.WebSocket()
+
+    ws.connect("wss://ws.steam-trader.com")
+    ws_token = requests.get("https://api.steam-trader.com/getwstoken/",
+                            params={'key': market_api_key}).text
+    ws.send(f'01{ws_token}')
+    ws.send('11')
+
+    while True:
+        message = ws.recv()
+        messages_stack.append(message)
+
+
 def are_credentials_filled() -> bool:
     return api_key != '' or steamguard_path != '' or username != '' or password != '' or market_api_key != ''
 
@@ -145,6 +242,7 @@ def market_scheduler():
     Exchange()
     get_buyorders()
     get_iteminfo()
+    session_ok()
 
     schedule.every(2).minutes.do(print_time)
 
@@ -153,6 +251,8 @@ def market_scheduler():
     schedule.every(180).seconds.do(get_buyorders)
 
     schedule.every(180).seconds.do(get_iteminfo)
+
+    schedule.every(300).seconds.do(session_ok)
 
     while True:
         schedule.run_pending()
@@ -172,7 +272,7 @@ def create_widgets():
     root.maxsize(width=360, height=200)
     root.geometry("360x200")
 
-    market_label = Label(root, text="ADLmarketbot", font="Arial 24", padx=3, pady=5, bg="#808080", borderwidth=1)
+    market_label = Label(root, text="ADLmarketbot", font="Arial 20", padx=3, pady=5, bg="#808080", borderwidth=1)
     market_label.grid(row=0, column=0, padx=5, pady=10)
 
     text = """
@@ -233,7 +333,7 @@ def log_in():
     except:
         messagebox.showerror("Error", "Имя учетной записи или пароль, которые вы ввели, неверны или вы "
                                       "предприняли слишком много попыток для входа в систему.")
-        logger.error("Неудачная попытка авторизации")  # логирование
+        logger.error(print_time(), "Неудачная попытка авторизации")  # логирование
 
 
 def insert_data():
@@ -272,6 +372,16 @@ def find_shared_secret():
         "https://github.com/SteamTimeIdler/stidler/wiki/Getting-your-%27shared_secret%27-code-for-use-with-Auto"
         "-Restarter-on-Mobile-Authentication",
         new=1)
+    return result
+
+
+def find_github_wiki():
+    result = webbrowser.open("https://github.com/PyMxINI/ADLMARKETBOT", new=1)
+    return result
+
+
+def find_donateurl():
+    result = webbrowser.open("https://steamcommunity.com/tradeoffer/new/?partner=1023901609&token=R_Sr_1oV", new=1)
     return result
 
 
