@@ -62,7 +62,7 @@ def Exchange():
         try:
             if not client.is_session_alive():  # если сессия в стим мертва
                 print(print_time(), colorama.Fore.RED + f'Session expired!')
-                client.login(username, password, "steam_guard.json")
+                client.login(username, password, steamguard_path)
 
                 client.accept_trade_offer(offer)  # принимаю обмен с данными offerID
                 print(print_time(),
@@ -153,7 +153,7 @@ def session_ok():
         if not client.is_session_alive():  # если сессия в стим мертва
             print(print_time(), colorama.Fore.RED + 'Session expired!')
             logger.warning('Session expired!')  # логирование
-            client.login(username, password, "steam_guard.json")
+            client.login(username, password, steamguard_path)
 
 
 def editPrice(id_, price):
