@@ -47,8 +47,6 @@ def catch_exceptions(cancel_on_failure=False):
     return catch_exceptions_decorator
 
 
-# @catch_exceptions(cancel_on_failure=False)
-# client.accept_trade_offer(offer) спасибо за решение пробелемы vk > https://vk.com/ilay1999xp
 def Exchange():
     response_steamtrader = requests.get(
         "https://api.steam-trader.com/exchange/?key={}".format(market_api_key))  # отправляю запрос на получение трейда
@@ -62,7 +60,7 @@ def Exchange():
         try:
             if not client.is_session_alive():  # если сессия в стим мертва
                 print(print_time(), colorama.Fore.RED + f'Session expired!')
-                client.login(username, password, steamguard_path)
+                client.login(username, password, "steam_guard.json")
 
                 client.accept_trade_offer(offer)  # принимаю обмен с данными offerID
                 print(print_time(),
@@ -135,8 +133,7 @@ def get_iteminfo():
                 logger.info('iteminfo: success - Цены на предметы получены')  # логирование
                 market_name = (response_steamtrader_itemprices_json["name"])  # steamtrader имя предмета
                 market_priceorder = (response_steamtrader_itemprices_json["buy_price"])
-                offerssell = (response_steamtrader_itemprices_json["sell_offers"])[0]
-                offer1 = (offerssell["price"])  # цена с инфы выще
+                offer1 = (response_steamtrader_itemprices_json['market_priсe'])  #
                 try:
                     print(f"Название предмета: {str(market_name)}.")
                     print(f"Минимальная цена продажи на сайте: {float(offer1)} Rub.")
@@ -153,7 +150,7 @@ def session_ok():
         if not client.is_session_alive():  # если сессия в стим мертва
             print(print_time(), colorama.Fore.RED + 'Session expired!')
             logger.warning('Session expired!')  # логирование
-            client.login(username, password, steamguard_path)
+            client.login(username, password, "steam_guard.json")
 
 
 def editPrice(id_, price):
