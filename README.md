@@ -1,6 +1,7 @@
 # **ADLMARKETBOT**
 Бот с открытым исходным кодом,для автоматической передачи вещей [Steam-Trader](https://steam-trader.com/)
-
+# **ADLMARKETBOTLITE**
+* облегченая и рабочая версия бота для принятие обменов [Steam-Trader](https://github.com/PyMxINI/ADLMARKETBOTLITE)
 ## GUIDE 
 Пожалуйста, ознакомьтесь с [Wiki](https://github.com/PyMxINI/ADLMARKETBOT/wiki) для руководства по установке / использованию.
 
